@@ -117,6 +117,7 @@ def setup(obj):
 def teardown(obj):
     log.info('tearing down fixtures...')
     obj.db.session.expunge_all()
+    obj.db.session.close()
     obj.db.drop_all()
     pop_ctx()
 
