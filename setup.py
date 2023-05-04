@@ -34,8 +34,8 @@ except ImportError:
 
 setup(
     name='Flask-Fixtures',
-    version='0.3.7',
-    url='https://github.com/croach/Flask-Fixtures',
+    version='0.4.1',
+    url='https://github.com/ArtFacts/Flask-Fixtures',
     license='MIT License',
     author='Christopher Roach',
     author_email='vthakr@gmail.com',
@@ -51,7 +51,6 @@ setup(
     zip_safe=False,
     include_package_data=True,
     platforms='any',
-
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
