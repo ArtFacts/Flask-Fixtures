@@ -33,7 +33,7 @@ try:
 except ImportError:
     import json
 
-__version__ = '0.3.7'
+__version__ = '0.4.1'
 
 
 # Configure the root logger for the library
@@ -47,51 +47,20 @@ CLASS_TEARDOWN_NAMES = ('tearDownClass', 'teardown_class', 'teardown_all', 'tear
 TEST_SETUP_NAMES = ('setUp',)
 TEST_TEARDOWN_NAMES = ('tearDown',)
 
-def push_ctx(app=None):
-    """Creates new test context(s) for the given app
-
-    If the app is not None, it overrides any existing app and/or request
-    context. In other words, we will use the app that was passed in to create
-    a new test request context on the top of the stack. If, however, nothing
-    was passed in, we will assume that another app and/or  request context is
-    already in place and use that to run the test suite. If no app or request
-    context can be found, an AssertionError is emitted to let the user know
-    that they must somehow specify an application for testing.
-
-    """
-    if app is not None:
-        ctx = app.test_request_context()
-        ctx.fixtures_request_context = True
-        ctx.push()
-        if _app_ctx_stack is not None:
-            _app_ctx_stack.top.fixtures_app_context = True
-
-    # Make sure that we have an application in the current context
-    if (_app_ctx_stack is None or _app_ctx_stack.top is None) and _request_ctx_stack.top is None:
-        raise AssertionError('A Flask application must be specified for Fixtures to work.')
-
-
-def pop_ctx():
-    """Removes the test context(s) from the current stack(s)
-    """
-    if getattr(_request_ctx_stack.top, 'fixtures_request_context', False):
-        _request_ctx_stack.pop()
-    if _app_ctx_stack is not None and getattr(_app_ctx_stack.top, 'fixtures_app_context', False):
-        _app_ctx_stack.pop()
-
 
 def setup(obj):
     log.info('setting up fixtures...')
 
-    # Push a request and/or app context onto the stack
-    push_ctx(getattr(obj, 'app'))
+    with obj.app.app_context():
+        # Setup the database
+        obj.db.create_all()
+        # Rollback any lingering transactions
+        obj.db.session.rollback()
+        # Read required data into the database
+        setup_fixtures(obj)
 
-    # Setup the database
-    obj.db.create_all()
-    # Rollback any lingering transactions
-    obj.db.session.rollback()
 
-
+def setup_fixtures(obj):
     # Construct a list of paths within which fixtures may reside
     default_fixtures_dir = os.path.join(current_app.root_path, 'fixtures')
 
@@ -116,10 +85,10 @@ def setup(obj):
 
 def teardown(obj):
     log.info('tearing down fixtures...')
-    obj.db.session.expunge_all()
-    obj.db.session.close()
-    obj.db.drop_all()
-    pop_ctx()
+    with obj.app.app_context():
+        obj.db.session.expunge_all()
+        obj.db.session.close()
+        obj.db.drop_all()
 
 
 def load_fixtures(db, fixtures):
